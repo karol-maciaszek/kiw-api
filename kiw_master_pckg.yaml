@@ -1,0 +1,6300 @@
+openapi: 3.0.0
+info:
+  version: '2.0'
+  title: Master-Package des KIW Schnittstellensets
+  description: 'Das KIW Schnittstellen Set beruht auf offenen Standards (zur fachlichen Modellierung insb. die UN/CEFACT CCL) und gängigen Formate. Die Realisierung der API Endpunkte sowie die Nutzung der API kann in jeder geeigneten Entwicklungssprache erfolgen. Auf diese Weise sollen lose gekoppelte und flexibel erweiterbare Integrationsszenarien unterstützt werden, in denen mehrere Business Software Anwendungen jeweils unabhängig voneinander Daten wie beispielsweise Geschäftspartnerdaten oder Buchungs- und Rechnungsdaten austauschen können. Dies geschieht über generisch definierte KIW-Objekte und KIW-Methoden.'
+servers:
+  - url: 'https://api.itwirtschaft.de/v1'
+    description: No Test Server available yet.
+paths:
+  /QueryKIWData:
+    post:
+      summary: '(input:KIWQuery): Output KIWResponse'
+      description: Über diesen Endpunkt werden Daten bei einem beteiligten System abgerufen. Das übergebene Paket liefert dabei die notwendigen Angaben für die interne Ermittlung der Daten. Die Operation im dazugehörigen Process Objekt muss dabei zwangsweise QUERY sein.
+      operationId: query
+      tags:
+        - Endpunkte
+      requestBody:
+        description: 'Als Payload wird immer ein Query Objekt übergeben, dabei kann es sich um ein XML oder JSON Objekt handeln.'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+      responses:
+        '200':
+          description: Als Antwort wird immer ein Response Objekt zurückgegeben.
+          headers:
+            x-next:
+              description: A link to the next page of responses
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KIWResponse'
+  /ProcessKIWData:
+    post:
+      summary: '(input: KIWDataPackage): Output KIWResponse'
+      description: 'Über diesen Endpunkt werden übergebene Daten, in Abhängigkeit der verwendeten Operation im Process Objekt, verarbeitet. Mögliche Operationen sind: ADD, UPDATE oder DELETE.'
+      operationId: process
+      tags:
+        - Endpunkte
+      requestBody:
+        description: 'Als Payload wird immer ein DataPackage Objekt übergeben, dabei kann es sich um ein XML oder JSON Objekt handeln.'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+      responses:
+        '200':
+          description: Als Antwort wird immer ein Response Objekt zurückgegeben.
+          headers:
+            x-next:
+              description: A link to the next page of responses
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KIWResponse'
+components:
+  schemas:
+    KIWDataClass:
+      type: object
+      description: Eine Abstrakte Klasse für alle Fachobjekte des KIW-Schnittstellensets.
+      properties:
+        lastUpdateDate:
+          type: string
+          format: date-time
+          description: Das Datum der letzten Aktualisierung.
+        MasterSystem:
+          type: string
+          enum:
+            - MasterSystemA
+            - MasterSystemB
+          description: Code Bezeichnung des Ursprungssystem eines Objektes.
+          example: MasterSystemA
+        MasterSystemIdentifier:
+          type: string
+          description: Identifizierung des Ursprungssystem eines Objektes.
+          example: MSA01
+        ChangeHistory:
+          type: object
+          $ref: '#/components/schemas/KIWDataChangeHistory'
+          description: Informationen über die Historie des Objektes.
+        Container:
+          type: object
+          $ref: '#/components/schemas/DynamicDataStructure'
+          description: Container für variablen Inhalt.
+      required:
+        - lastUpdateDate
+    KIWDataChangeHistory:
+      type: object
+      properties:
+        ChangeDate:
+          type: string
+          format: date-time
+          description: Datum der Änderung.
+        Fields:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: Liste der geänderten Feldwerte.
+      required:
+        - ChangeDate
+        - Fields
+    KIWFieldChange:
+      type: object
+      properties:
+        Field:
+          type: string
+          description: Bezeichnung des Feldes.
+          example: Feldbezeichung
+        OldValue:
+          description: Der vorhergehende Wert des entsprechenden Felds.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+          example: Alter Wert
+        NewValue:
+          description: Der geänderte Wert des entsprechenden Felds.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+          example: Neuer Wert
+      required:
+        - Field
+        - OldValue
+        - NewValue
+    KIWDataPackage:
+      type: object
+      description: Objeckt mit dem Datenpaket für den Datenaustausch.
+      properties:
+        Envelope:
+          type: object
+          description: Objekt für die Beschreibung der Kommunikation.
+          allOf:
+            - $ref: '#/components/schemas/KIWEnvelope'
+        Process:
+          type: object
+          description: Objekt für die Beschreibung der angewendeten Methode.
+          allOf:
+            - $ref: '#/components/schemas/KIWProcess'
+        Content:
+          type: array
+          description: Liste von zu übergebenden Objekten.
+          items:
+            type: object
+            allOf:
+              - $ref: '#/components/schemas/KIWDataClass'
+      required:
+        - Envelope
+        - Process
+        - Content
+    KIWQuery:
+      type: object
+      description: Objekt mit dem Datenpaket für Suchanfragen für die Rücklieferung konkreter Daten.
+      properties:
+        Envelope:
+          type: object
+          description: Objekt für die Beschreibung der Kommunikation.
+          allOf:
+            - $ref: '#/components/schemas/KIWEnvelope'
+        Process:
+          type: object
+          description: Objekt für die Beschreibung der angewendeten Methode.
+          allOf:
+            - $ref: '#/components/schemas/KIWProcess'
+        Query:
+          type: object
+          description: Objekt mit konkreten Werten für die Suchanfrage.
+          allOf:
+            - $ref: '#/components/schemas/KIWDataClass'
+      required:
+        - Envelope
+        - Process
+        - Query
+    KIWEnvelope:
+      type: object
+      description: Objekt für die Beschreibung der Kommunikation.
+      properties:
+        MessageIdentifier:
+          type: integer
+          description: ID der Nachricht
+          example: 563
+        SendingSystem:
+          type: integer
+          description: ID des Sendesystems
+          example: 4
+        SendingSystemName:
+          type: string
+          description: Name des Sendesystems
+          example: Sendesystem Y
+        RecievingSystem:
+          type: integer
+          description: ID des Empfangssystems
+          example: 8
+        RecievingSystemName:
+          type: string
+          description: Name des Empfangssystems
+          example: Empfangssystem X
+        DateSend:
+          type: string
+          format: date
+          description: Sendedatum der Nachricht
+        TimeSend:
+          type: string
+          format: date-time
+          description: Sendezeit der Nachricht
+        ContentOverview:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/KIWOverview'
+          description: Beschreibt die enthaltenen Datenobjekte
+        ClientID:
+          type: string
+          description: Mandanten ID
+        ClientName:
+          type: string
+          description: Mandantenname
+      required:
+        - MessageIdentifier
+        - SendingSystem
+        - RecievingSystem
+        - DateSend
+        - TimeSend
+        - ContentOverview
+    KIWOverview:
+      type: object
+      description: Objekt mit einer Auflistung über die enthaltenen Objekte eines Datenpakets.
+      properties:
+        DataClass:
+          type: string
+          description: Name des enthaltenen Datenobjekts
+          example: KIWAccountingEntry
+        Count:
+          type: integer
+          description: Anzahl der Datenobjekte
+          example: 2
+      required:
+        - DataClass
+        - Count
+    KIWResponse:
+      type: object
+      description: Objekt mit Informationen zum Vorgang des Datenaustausches über den Endpunkt '/ProcessKIWData'.
+      properties:
+        Success:
+          type: boolean
+          description: Boolscherwert über den Erfolg/Misserfolg einer Datenübertragung.
+        StatusCode:
+          type: string
+          enum:
+            - codeA
+            - codeB
+          description: Informationscodierung über den Erfolg/Misserfolg einer Datenübertragung.
+        StatusText:
+          type: string
+          description: Textuelle Beschreibung über den Status einer Datenübertragung.
+        Content:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/KIWDataPackage'
+          description: Datenpaket mit den zurückgelieferten Objekten.
+      required:
+        - Success
+        - StatusCode
+        - StatusText
+        - Content
+    KIWProcess:
+      type: object
+      description: Hauptobjekt das die Methode des Aufrufs beschreibt.
+      properties:
+        Name:
+          type: string
+          description: 'Name, ausgedrückt als Text, des Prozesses.'
+          example: KIWAccountingEntry.add
+        Operation:
+          type: string
+          description: 'Ein Code, der die Funktionsweise des auszuführenden Prozesses beschreibt.'
+          example: 1
+        Description:
+          type: string
+          description: Eine textuelle Beschreibung des Prozesses.
+          example: Beschreibung des Prozesses
+        Version:
+          type: string
+          description: Eine Kennung einer Version dieses Prozesses.
+          example: 00000000-0000-0000-0000-000000000000
+    DynamicDataStructure:
+      description: Container für variablen Inhalt.
+      oneOf:
+        - type: string
+        - type: boolean
+        - type: integer
+        - type: number
+    AccountingAccount:
+      type: object
+      description: 'A specific account for recording debits and credits to general accounting, cost accounting or budget accounting.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        AmountTypeCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        Abbreviated NameText:
+          type: string
+          description: ''
+        CostAssignmentReferenceText:
+          type: string
+          description: ''
+        NatureCode:
+          type: string
+          format: enum
+          description: ''
+        RelatedAccountingAccountClassification:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Classification'
+          description: The classification related to this accounting account.
+        SpecifiedFinancialAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialAccount'
+          description: A financial account specified for this accounting account.
+        LinkedAccountingAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingAccount'
+          description: An accounting account linked to this accounting account.
+    AccountingAccountClassification:
+      type: object
+      description: 'A systematic arrangement in classes or categories according to the sector of activities the business is actually running, such as insurance, commercial and industrial, or not for profit.'
+      properties:
+        InternalReferenceText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DetailedAccountingEntryLine:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingEntryLine'
+          description: A detailed accounting line entry for this accounting entry.
+        JustificationDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A document that provides the justification for this accounting entry.
+    AccountingEntry:
+      type: object
+      description: 'A posting of monetary values into accounting books that indicates the financial flow for an economic event, the acquisition or consumption of a resource, or the working contribution of an agent.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        ValueDate:
+          type: string
+          format: daten
+        RealtedEntryIdentifier:
+          type: string
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        PurposeText:
+          type: string
+          description: ''
+        CaptureDateTime:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingEntryLine'
+          description: A detailed accounting line entry for this accounting entry.
+        DetailedAccountingEntryLine:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingEntryLine'
+          description: A detailed accounting line entry for this accounting entry.
+        JustificationDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingEntryLine'
+          description: A detailed accounting line entry for this accounting entry.
+    AccountingEntryLine:
+      type: object
+      description: A line included in an accounting entry.
+      properties:
+        CommentText:
+          type: string
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        SourceCode:
+          type: string
+          format: enum
+          description: ''
+        LastChangeDateTime:
+          type: string
+          format: date-time
+          description: ''
+        DocumentReferenceIdentifier:
+          type: string
+          description: ''
+        'MatureText:':
+          type: string
+          description: ''
+        RelatedAccountingLineMonetaryValue:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingLineMonetaryValue'
+          description: An accounting line monetary value related to this accounting entry line.
+    AccountingJournal:
+      type: object
+      description: A book or file where particularities of transactions of one specific category are recorded.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        OpeningDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ClosingDateTime:
+          type: string
+          format: date-time
+          description: ''
+        OpeningResponsibleContact:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contact'
+          description: The contact responsible for opening this accounting journal.
+        ClosingResponsibleContact:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contact'
+          description: The contact responsible for closing this accounting journal.
+        OffsettingAccountingAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingAccount'
+          description: An offsetting accounting account for this accounting journal.
+        IncludedAccountingEntry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingEntry'
+          description: An accounting entry included in this journal.
+    AccountingLineMonetaryValue:
+      type: object
+      description: The material or monetary worth of a thing that is associated with a line that is a part of an accounting entry.
+      properties:
+        LocalAccountingCurrencyAmount:
+          type: number
+          description: ''
+        DebitCreditCode:
+          type: string
+          format: enum
+          description: ''
+        MatchingIdentifier:
+          type: string
+          description: ''
+        ApplicationIdentifier:
+          type: string
+          description: ''
+        BalanceQuantity:
+          type: number
+          description: ''
+        BookingAccountingAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingAccount'
+          description: An accounting account to which this accounting line monetary value is booked.
+    Accreditation:
+      type: object
+      description: 'An official recognition awarded to a person, organisation or thing, such as a building or product, to certify that a certain level of attainment has been achieved.'
+      properties:
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ObtainedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        AccreditingBodyNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        AuthenticationMethodCode:
+          type: string
+          format: enum
+          description: ''
+        ExpiryDateTime:
+          type: string
+          format: date-time
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        EvaluationScoreValue:
+          type: string
+    Activity:
+      type: object
+      description: A thing that a person or group does or has done.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        OccurrenceDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        RelatedActivityCode:
+          type: string
+          format: enum
+          description: ''
+        TargetCode:
+          type: string
+          format: enum
+          description: ''
+        OperationsQuantity:
+          type: number
+          description: ''
+        DurationMeasure:
+          type: number
+          description: ''
+        RelatedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location related to this activity.
+        SpecifiedProblem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Problem'
+          description: A problem specified for this activity.
+        SpecifiedCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic specified for this activity.
+        SpecifiedGear:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Gear'
+          description: Gear specified for this activity.
+        SourceCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic of the source of this activity.
+        DestinationCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic of the destination of this activity.
+        RelatedActivity:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Activity'
+          description: An activity related to this activity.
+        SpecifiedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A document specified for this activity.
+        SpecifiedPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period specified for this activity.
+        SpecifiedTrip:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Trip'
+          description: A trip specified for this activity.
+    Address:
+      type: object
+      description: The location at which a particular organization or person may be found or reached.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        FormatCode:
+          type: string
+          format: enum
+          description: ''
+        PostcodeCode:
+          type: string
+          format: enum
+          description: ''
+        PostOfficeBoxText:
+          type: string
+          description: ''
+        BuildingNumberText:
+          type: string
+          description: ''
+        BuildingNameText:
+          type: string
+          description: ''
+        RoomIdentificationText:
+          type: string
+          description: ''
+        FloorIdentificationText:
+          type: string
+          description: ''
+        StreetNameText:
+          type: string
+          description: ''
+        CityNameText:
+          type: string
+          description: ''
+        AttentionOfText:
+          type: string
+          description: ''
+        CareOfText:
+          type: string
+          description: ''
+        CountryIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        CitySub-DivisionNameText:
+          type: string
+          description: ''
+        CountryNameText:
+          type: string
+          description: ''
+        CountrySubDivisionIdentifier:
+          type: string
+          description: ''
+        CountrySubDivisionNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        CityIdentifier:
+          type: string
+          description: ''
+        TownshipNameText:
+          type: string
+          description: ''
+        ReturnedMailIndicator:
+          type: boolean
+          description: ''
+        LegalIndicator:
+          type: boolean
+          description: ''
+        PreventOverrideIndicator:
+          type: boolean
+          description: ''
+        StaircaseNumberText:
+          type: string
+          description: ''
+        StreetPrefixCode:
+          type: string
+          format: enum
+          description: ''
+        StreetSuffixCode:
+          type: string
+          format: enum
+          description: ''
+        PostalAreaText:
+          type: string
+          description: ''
+        CountryIdentificationCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: The unique identifier of the country for this address.
+        CountryIdentificationCountrySubDivision:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CountrySubDivision'
+          description: An identification of a country sub-division of this address such as a state or county in the US or county in the UK or a department in France.
+        GeoCoordinateIdentificationGeographicalCoordinate:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/GeographicalCoordinate'
+          description: An identification of a set of geographical coordinates for this address.
+        UsagePreference:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Preference'
+          description: The preference for the usage of this address.
+        SpecifiedTimeStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/TimeStatus'
+          description: 'The time status for this address, such as current, previous, future, specified for this address.'
+        ApplicablePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period applicable for this address.
+        SpecifiedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: The location specified for this address.
+    AllowanceCharge:
+      type: object
+      description: 'A component of pricing, such as a service, promotion, allowance or charge.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        CalculationPercent:
+          type: number
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        BasisAmount:
+          type: number
+          description: ''
+        BasisQuantity:
+          type: number
+          description: ''
+        CalculationNumeric:
+          type: number
+          description: ''
+        AppliedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ActualAmount:
+          type: number
+          description: ''
+        ChargeIndicator:
+          type: boolean
+          description: ''
+        SequenceNumeric:
+          type: number
+          description: ''
+        PrepaidIndicator:
+          type: boolean
+          description: ''
+        ReasonText:
+          type: string
+          description: ''
+        DeductionAmount:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ActualCurrencyExchange:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CurrencyExchange'
+          description: An actual currency exchange for this allowance charge.
+        CategoryTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: A tax category of this allowance or charge.
+        IdentifiedPaymentMeans:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PaymentMeans'
+          description: A payment means identified for this allowance charge.
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period for which this allowance charge is valid..
+        SpecifiedAccountingAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingAccount'
+          description: An accounting account specified for this allowance charge.
+        AppliedTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: A tax that is applied to this allowance or charge.
+    Area:
+      type: object
+      description: A part of a surface.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ActualMeasure:
+          type: number
+          description: ''
+        StreetFrontageMeasure:
+          type: number
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DesignatedSectionText:
+          type: string
+          description: ''
+        BoundaryGeographicalCoordinate:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/GeographicalCoordinate'
+          description: A geographical coordinate of the boundary for this area.
+        ApplicableCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic applicable to this area.
+        SpecifiedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location specified for this area.
+        SubordinateArea:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Area'
+          description: An area subordinate to this area.
+    Authentication:
+      type: object
+      description: A proof that something is genuine.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ActualDateTime:
+          type: string
+          format: date-time
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        StatementText:
+          type: string
+          description: ''
+        StatementCode:
+          type: string
+          format: enum
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        RepresentationTypeCode:
+          type: string
+          format: enum
+        SignatoryText:
+          type: string
+          description: ''
+        ImageBinaryObject:
+          type: string
+          format: binary
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        ProviderParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party providing this authentication.
+        IssueLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: An issue location for this authentication.
+        LocationProviderParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party providing the location for this authentication.
+        IncludedClause:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Clause'
+          description: A clause included in this authentication.
+    BinaryFile:
+      type: object
+      description: A computer file or program stored in a binary format.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TitleText:
+          type: string
+          description: ''
+        AuthorNameText:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        FileNameText:
+          type: string
+          description: ''
+        URIIdentifier:
+          type: string
+          description: ''
+        MIMECode:
+          type: string
+          format: enum
+          description: ''
+        EncodingCode:
+          type: string
+          format: enum
+          description: ''
+        CharacterSetCode:
+          type: string
+          format: enum
+        IncludedBinaryObject:
+          type: string
+          format: binary
+          description: ''
+        AccessText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        SizeMeasure:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        EmbeddedBinaryObject:
+          type: string
+          format: binary
+          description: ''
+        LicenceIdentifier:
+          type: string
+          description: ''
+        AccessAvailabilityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: Binary File. Access Availability.
+    BreakdownItem:
+      type: object
+      description: A part or element of a whole.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        ClassificationCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        CommentText:
+          type: string
+          description: ''
+        IndexText:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        ReferencedItemIdentifier:
+          type: string
+          description: ''
+        ReferencedItemQuantity:
+          type: number
+          description: ''
+        UnitPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A unit price for this breakdown item.
+        TotalPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A total price for this breakdown item.
+        IncludedBreakdownItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BreakdownItem'
+          description: A breakdown item included in this breakdown item.
+        ChangedStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          description: A changed status of this breakdown item.
+        ReferencedBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A binary file that is referenced for this breakdown item.
+        DesignatedClassification:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Classification'
+          description: A classification designated for this breakdown item.
+        StipulatedRevisionMethod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RevisionMethod'
+          description: A revision method stipulated for this breakdown item.
+    BreakdownStatement:
+      type: object
+      description: 'A detailed statement of work, materials, products, prices, or dimensions.'
+      properties:
+        CommentText:
+          type: string
+          description: ''
+        CreationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        CurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        LanguageCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ItemWorkItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/WorkItem'
+          description: A work item in this breakdown statement.
+        TotalPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A total price for this breakdown statement.
+        CreationBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A binary file used to create this breakdown statement.
+        ReaderBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A binary file used to read this breakdown statement.
+        ChangedStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          description: A changed status for this breakdown statement.
+        ReferencedBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A binary file that is referenced by this breakdown statement.
+        IncludedBreakdownItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BreakdownItem'
+          description: A breakdown item included in this breakdown statement.
+        StipulatedRevisionMethod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RevisionMethod'
+          description: A revision method stipulated for this breakdown statement.
+    Calendar:
+      type: object
+      description: 'A system that defines beginning, ending, length, and sub-divisions of a period of time.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        StartDate:
+          type: string
+          format: date
+          description: ''
+        EndDate:
+          type: string
+          format: date
+          description: ''
+        HolidayDate:
+          type: string
+          format: date
+          description: ''
+        SpecifiedPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A specified period within this calendar.
+        AssociatedWorkShift:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/WorkShift'
+          description: A work shift associated with this calendar.
+    Category:
+      type: object
+      description: A class or division of people or things regarded as having particular shared characteristics.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        SpecialConditionText:
+          type: string
+          description: ''
+    Certificate:
+      type: object
+      description: A legal proof of ownership or worthiness of an item.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        IssueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ExpiryDateTime:
+          type: string
+          format: date-time
+          description: ''
+        IssueReasonCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        RequestedEffectiveDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ActualEffectiveDateTime:
+          type: string
+          format: date-time
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        PartyIdentifier:
+          type: string
+          description: ''
+        ApplicableDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: The document applicable to this certificate.
+    Characteristic:
+      type: object
+      description: A prominent attribute or aspect.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        ValueText:
+          type: string
+          description: ''
+        ValueCode:
+          type: string
+          format: enum
+          description: ''
+        ValueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        CertificationCode:
+          type: string
+          format: enum
+          description: ''
+        ValueNumeric:
+          type: number
+          description: ''
+        ApplicableCondition:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Condition'
+          description: A condition applicable to this characteristic.
+        ApplicableStandard:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Standard'
+          description: A standard that is applicable to this characteristic.
+        ValueBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A value for this characteristic expressed in a binary file.
+        SpecifiedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An event specified for this characteristic.
+        RelatedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A document related to this characteristic.
+        SpecifiedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location specified for this characteristic.
+    Checkpoint:
+      type: object
+      description: The point in an operation where the inspection is performed.
+      properties:
+        DescriptionText:
+          type: string
+          description: ''
+        InputQuantity:
+          type: number
+          description: ''
+        OutputQuantity:
+          type: number
+          description: ''
+        RejectsQuantity:
+          type: number
+          description: ''
+    ClaimRecovery:
+      type: object
+      description: Amount of money from a claim that is to be contributed by or recovered from other parties. The recovery procedures may refer to legal requirements or to conventions between parties.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ActualAmount:
+          type: number
+          description: ''
+        ContributingParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party that is contributing to this claim recovery.
+    Classification:
+      type: object
+      description: A systematic arrangement in classes or categories according to established criteria.
+      properties:
+        SystemIdentifier:
+          type: string
+          description: ''
+        SystemNameText:
+          type: string
+          description: ''
+        ClassCode:
+          type: string
+          format: enum
+          description: ''
+        ClassNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        ClassCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A class characteristic of this classification.
+        ApplicableStandard:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Standard'
+          description: A standard that is applicable to this classification.
+        RelatedClassification:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Classification'
+          description: A classification related to this classification.
+    Clause:
+      type: object
+      description: 'A distinct article or provision in a contract, treaty, will, or other formal or legal written document, which requires compliance.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ContentText:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        TitleText:
+          type: string
+          description: ''
+        SpecifiedParameter:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Parameter'
+          description: A parameter specified within this clause.
+        AssociatedMeasurement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Measurement'
+          description: A measurement associated with this clause.
+        AssociatedPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of time associated with this clause.
+    Commission:
+      type: object
+      description: 'A remuneration to an agent for the performance of specific duties, such as a payment for services rendered or products sold.'
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        BasisAmount:
+          type: number
+          description: ''
+        RatePercent:
+          type: number
+          description: ''
+        ActualAmount:
+          type: number
+          description: ''
+        PaymentMethodCode:
+          type: string
+          format: enum
+          description: ''
+        OverridePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: 'The override period for the commission, such as when the period is different from the period of an insurance premium invoice line.'
+    Communication:
+      type: object
+      description: 'The exchange of thoughts, messages, or information, as by speech, signals, writing, or behaviour between persons and/or organizations.'
+      properties:
+        URIIdentifier:
+          type: string
+          description: ''
+        ChannelCode:
+          type: string
+          format: enum
+          description: ''
+        LocalNumberText:
+          type: string
+          description: ''
+        CompleteNumberText:
+          type: string
+          description: ''
+        CountryNumberCode:
+          type: string
+          format: enum
+          description: ''
+        ExtensionNumberText:
+          type: string
+          description: ''
+        AreaNumberCode:
+          type: string
+          format: enum
+          description: ''
+        AccessText:
+          type: string
+          description: ''
+        UseCode:
+          type: string
+          format: enum
+          description: ''
+        InvalidIndicator:
+          type: boolean
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        ContactAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: Contact address information for this communication.
+        UsagePreference:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Preference'
+          description: A preference for the usage of this communication method.
+    Condition:
+      type: object
+      xml:
+        name: Condition
+      description: A state of a person or thing.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: A Type
+        NameText:
+          type: string
+          description: A Name
+        SpecifiedMeasurement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Measurement'
+          description: A measurement specified for this condition.
+    Contact:
+      type: object
+      description: A person or department that acts as a point of contact with another person or department.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        JobTitleText:
+          type: string
+          description: ''
+        ResponsibilityText:
+          type: string
+          description: ''
+        DepartmentNameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        PersonNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        PrimaryIndicator:
+          type: boolean
+          description: ''
+        AccessibilityCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+    Contract:
+      type: object
+      description: 'An agreement between two or more parties, especially one that is written or spoken and enforceable by law.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        CompletionPercent:
+          type: number
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        IssueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PriceAmount:
+          type: number
+          description: ''
+        ExtensionIndicator:
+          type: boolean
+          description: ''
+        ItemIdentifier:
+          type: string
+          description: ''
+        StartDate:
+          type: string
+          format: date
+          description: ''
+        ItemQuantity:
+          type: number
+          description: ''
+        FeePercent:
+          type: number
+          description: ''
+        EndDate:
+          type: string
+          format: date
+          description: ''
+        FundingYearDateTime:
+          type: string
+          format: date-time
+          description: ''
+        LastItemDeliveryDate:
+          type: string
+          format: date
+          description: ''
+        CostAmount:
+          type: number
+          description: ''
+        OriginalInceptionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EffectiveDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SignedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        IssueCountryIdentifier:
+          type: string
+          description: ''
+        LanguageCode:
+          type: string
+          format: enum
+          description: ''
+        DurationTypeCode:
+          type: string
+          format: enum
+          description: ''
+        RenewalFrequencyCode:
+          type: string
+          format: enum
+          description: ''
+        LastRenewalDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TerminationNoticePeriodMeasure:
+          type: number
+          description: ''
+        ReinstatementDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ReplacementIndicator:
+          type: boolean
+          description: ''
+        CounterSignatureIndicator:
+          type: boolean
+          description: ''
+        ClauseText:
+          type: string
+          description: ''
+        ContractorLiabilityIndicator:
+          type: boolean
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        FinalPaymentDateTime:
+          type: string
+          format: date-time
+          description: ''
+        LastUseDateTime:
+          type: string
+          format: date-time
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ProjectIdentifier:
+          type: string
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        StartDateTime:
+          type: string
+          format: date-time
+          description: ''
+        RenewalNumeric:
+          type: number
+          description: ''
+        RenewalStatusCode:
+          type: string
+          format: enum
+          description: ''
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        SupportingGuarantee:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Guarantee'
+          description: ''
+        IdentifiedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        ReferenceDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: ''
+        EffectivePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        PerformanceMetrics:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Metrics'
+          description: ''
+        ModificationContractChange:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ContractChange'
+          description: ''
+        AssociatedCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: ''
+        PrincipalProgramme:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Programme'
+          description: ''
+        ContainedProjectPortfolio:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ProjectPortfolio'
+          description: ''
+        IncentivePerformanceMeasurement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PerformanceMeasurement'
+          description: ''
+        ContainedProject:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Project'
+          description: ''
+        SpecifiedContractLineItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ContractLineItem'
+          description: ''
+        ApplicableClause:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Clause'
+          description: ''
+        InstructionNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: ''
+        ApplicableCommission:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Commission'
+          description: ''
+        ApplicableRetainedBalance:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RetainedBalance'
+          description: ''
+        SignedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: ''
+        BindingPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        InitialPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        RenewalTermPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        SpecifiedStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          description: ''
+        SpecifiedNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: ''
+        OrderingParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        ObservingParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        InvoiceeParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        SenderParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        IssuerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        SpecifiedReference:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Reference'
+          description: ''
+        SpecifiedInstructions:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Instructions'
+          description: ''
+        BuyerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        SellerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        TotalPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: ''
+        ActualBreakdownStatement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BreakdownStatement'
+          description: ''
+        StipulatedRevisionMethod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RevisionMethod'
+          description: ''
+        SubordinateContract:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contract'
+          description: ''
+        SpecifiedPaymentTerms:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PaymentTerms'
+          description: ''
+        IncludedContractSection:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ContractSection'
+          description: ''
+        ApplicableEndorsement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Endorsement'
+          description: ''
+        SpecifiedIdentity:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Identity'
+          description: ''
+        LapsePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+    ContractChange:
+      type: object
+      description: A set of one or more changes made to the scope of a contract after the contract has been initiated.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        EstimatedCostDifferenceAmount:
+          type: number
+          description: ''
+        ActualCostDifferenceAmount:
+          type: number
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        EffectiveDate:
+          type: string
+          format: date
+          description: ''
+        IdentifiedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party identified in this contract change.
+    ContractLineItem:
+      type: object
+      description: 'A distinct, separately defined line item specified in a contract.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TotalQuantity:
+          type: number
+          description: ''
+        ActualAmount:
+          type: number
+          description: ''
+        PaymentStatusCode:
+          type: string
+          format: enum
+          description: ''
+        VariationPercent:
+          type: number
+          description: ''
+        UnitAmount:
+          type: number
+          description: ''
+        MeasurementCode:
+          type: string
+          format: enum
+          description: ''
+        AssociatedContractLineItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ContractLineItem'
+          description: A contract line item associated to this contract line item.
+    ContractSection:
+      type: object
+      description: An identifiable part of a contract that has specific contract parameters.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        StartDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TotalPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A total price for this contract section.
+    Cost:
+      type: object
+      description: 'An effort or loss necessary to achieve a specified goal, including some combination of money, time, materials, and labour.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ComponentAmount:
+          type: number
+          description: ''
+        EffectiveDate:
+          type: string
+          format: date
+          description: ''
+        ComponentQuantity:
+          type: number
+          description: ''
+        ComponentNameText:
+          type: string
+          description: ''
+        UnitPriceMeasureCode:
+          type: string
+          format: enum
+          description: ''
+        UnitPriceAmount:
+          type: number
+          description: ''
+        TaxInclusiveAmount:
+          type: number
+          description: ''
+        TaxExclusiveAmount:
+          type: number
+          description: ''
+        DiscountAmount:
+          type: number
+          description: ''
+        DiscountPercent:
+          type: number
+          description: ''
+        RecurringIndicator:
+          type: boolean
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        DiscountTypeCode:
+          type: string
+          format: enum
+          description: ''
+        DiscountReasonCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        IncludedResource:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Resource'
+          description: A resource included in this cost.
+        ReportingPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The reporting period over which this cost is tracked.
+        ApplicableTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: Tax applicable to this cost.
+        ValueReductionWearAndTearDepreciation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/WearAndTearDepreciation'
+          description: A reduction in value for wear and tear depreciation to this cost.
+        ActualPayment:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Payment'
+          description: An actual payment of this cost.
+        AssignedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party assigned to this cost.
+        SpecifiedClaimRecovery:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ClaimRecovery'
+          description: A specified claim recovery for this cost.
+        ApplicableMeasurement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Measurement'
+          description: A measurement applicable to this cost.
+    Country:
+      type: object
+      description: 'The area of land that belongs to a nation together with its properties such as population, political organization, etc.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        SubordinateCountrySubDivision:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CountrySubDivision'
+          description: 'A country sub-division subordinate to this country, such as a state, a county, a canton, a province.'
+    CountrySubDivision:
+      type: object
+      description: 'An area of land which is a sub-division within a country, such as a state, a county, a canton, a province, etc.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        HierarchicalLevelCode:
+          type: string
+          format: enum
+          description: ''
+        ApplicableCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic applicable to this country sub-division.
+        IncludedArea:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Area'
+          description: An area included in this country sub-division.
+        OwnerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party that owns this country sub-division.
+        SuperordinateCountrySubDivision:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CountrySubDivision'
+          description: A superordinate country sub-division for this country sub-division.
+        SubordinateCountrySubDivision:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CountrySubDivision'
+          description: A subordinate country sub-division within this country sub-division.
+        AuthorizedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party authorized within this country sub-division.
+    CurrencyExchange:
+      type: object
+      description: The conversion of one currency to another.
+      properties:
+        SourceCurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        SourceUnitBasisNumeric:
+          type: number
+          description: ''
+        TargetCurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        TargetUnitBaseNumeric:
+          type: number
+          description: ''
+        MarketIdentifier:
+          type: string
+          description: ''
+        ConversionRate:
+          type: string
+          description: ''
+        ConversionRateDateTime:
+          type: string
+          format: date-time
+          description: ''
+        RateTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ApplicableContract:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contract'
+          description: Contract information applicable to this currency exchange.
+        ReferencedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A referenced document for this currency exchange.
+        AssociatedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: An associated document for this currency exchange.
+    CustomerClass:
+      type: object
+      description: The conditions and requirements of the type of person who may use or purchase a product.
+      properties:
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        CategoryNameText:
+          type: string
+          description: ''
+        UpperAgeLimitNumeric:
+          type: number
+          description: ''
+        LowerAgeLimitNumeric:
+          type: number
+          description: ''
+        GenderCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    Document:
+      type: object
+      description: 'A collection of data for a piece of written, printed or electronic matter that provides information or evidence.'
+      properties:
+        MultipleTypeIndicator:
+          type: boolean
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        PurposeText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        IssueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SubmissionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ReceiptDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ControlRequirementIndicator:
+          type: boolean
+          description: ''
+        AttachmentBinaryObject:
+          type: string
+          format: binary
+          description: ''
+        CreationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        CopyIndicator:
+          type: boolean
+          description: ''
+        ResponseDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ItemIdentificationIdentifier:
+          type: string
+          description: ''
+        RemarksText:
+          type: string
+          description: ''
+        LanguageIdentifier:
+          type: string
+          description: ''
+        CurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        LineCountNumeric:
+          type: number
+          description: ''
+        ProprietaryInformationTypeCode:
+          type: string
+          format: enum
+          description: ''
+        RevisionText:
+          type: string
+          description: ''
+        AuthorizationText:
+          type: string
+          description: ''
+        ChecksumNumeric:
+          type: number
+          description: ''
+        ProcessingTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ItemQuantity:
+          type: number
+          description: ''
+        AcceptanceDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PurposeCode:
+          type: string
+          format: enum
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        TotalPageQuantity:
+          type: number
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        RevisionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        RejectionReasonText:
+          type: string
+          description: ''
+        CancellationReasonCode:
+          type: string
+          format: enum
+          description: ''
+        CancellationReasonText:
+          type: string
+          description: ''
+        CancellationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SequenceIdentifier:
+          type: string
+          description: ''
+        ResponseTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ResponseReasonCode:
+          type: string
+          format: enum
+          description: ''
+        SectionNameText:
+          type: string
+          description: ''
+        ExternalIdentifier:
+          type: string
+          description: ''
+        FirstVersionIssueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ExaminedIndicator:
+          type: boolean
+          description: ''
+        VerifiedIndicator:
+          type: boolean
+          description: ''
+        SignedIndicator:
+          type: boolean
+          description: ''
+        SignedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        RequestedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ChannelCode:
+          type: string
+          format: enum
+          description: ''
+        SignatureLocationText:
+          type: string
+          description: ''
+        StatusText:
+          type: string
+          description: ''
+        RejectionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ResponseCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        GeographicalSignatureLocationText:
+          type: string
+          description: ''
+        SequenceNumeric:
+          type: number
+          description: ''
+        URIIdentifier:
+          type: string
+          description: ''
+        UrgencyCode:
+          type: string
+          format: enum
+          description: ''
+        PublicationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EffectivePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period within which this document is effective.
+        ReferenceDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: Other documents referenced by this document.
+        IssuerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that issues this document.
+        OwnerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party that owns this document.
+        IssueLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location where this document has been or may be issued.
+        SignatoryAuthentication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Authentication'
+          description: A signatory authentication for this document.
+        SenderParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that sends this document.
+        IncludedNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: A note included in this document.
+        RecipientParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that receives this document.
+        AcknowledgingOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: An organization acknowledging this document.
+        AttachedBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A binary file attached to this document.
+        SpecifiedCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic specified for this document.
+        RelatedCategory:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Category'
+          description: A category related to this document.
+        SpecifiedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An event specified in this document.
+        SpecifiedStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          description: A status specified for this document.
+        SpecifiedActivity:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Activity'
+          description: An activity specified in this document.
+        TotalPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A total price in this document.
+    Employee:
+      type: object
+      description: A person that works for and is paid a salary by another person or organization.
+      properties:
+        EmployerAssignedIdentificationIdentifier:
+          type: string
+          description: ''
+        HiredDateTime:
+          type: string
+          format: date-time
+          description: ''
+        FullPayDayInjuredIndicator:
+          type: boolean
+          description: ''
+        ReportingDepartmentText:
+          type: string
+          description: ''
+        StartedCurrentJobDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EntitledTaxExemptionQuantity:
+          type: number
+          description: ''
+        ExemptionWithholdingQuantity:
+          type: number
+          description: ''
+        BorrowedDepartmentNameText:
+          type: string
+          description: ''
+        SpecifiedAsParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party specified as an employee.
+        SpecifiedEmployeeInjuryIllness:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/EmployeeInjuryillness'
+          description: An injury or illness specified for this employee.
+    EmployeeCount:
+      type: object
+      description: The number of employees of various classifications for a specific time period.
+      properties:
+        UnionIndicator:
+          type: boolean
+          description: ''
+        FullTimeQuantity:
+          type: number
+          description: ''
+        PartTimeQuantity:
+          type: number
+          description: ''
+        SeasonalQuantity:
+          type: number
+          description: ''
+        TemporaryQuantity:
+          type: number
+          description: ''
+        ResignedQuantity:
+          type: number
+          description: ''
+        TerminatedQuantity:
+          type: number
+          description: ''
+        LeasedQuantity:
+          type: number
+          description: ''
+        IndependentContractorQuantity:
+          type: number
+          description: ''
+        TotalQuantity:
+          type: number
+          description: ''
+        ExemptQuantity:
+          type: number
+          description: ''
+        Non-ExemptQuantity:
+          type: number
+          description: ''
+        CountrySub-DivisionIdentifier:
+          type: string
+          description: ''
+        CountryIdentifier:
+          type: string
+          description: ''
+        LocationQuantity:
+          type: number
+          description: ''
+        Timespan:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The span of time for which the employee count applies.
+    EmployeeInjuryillness:
+      type: object
+      description: An injury or illness that happens to an employee at work and for which they may be entitled to worker's compensation.
+      properties:
+        WorkBeganTimeDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SafeguardDescriptionText:
+          type: string
+          description: ''
+        SafeguardProvidedIndicator:
+          type: boolean
+          description: ''
+        SafeguardUsedIndicator:
+          type: boolean
+          description: ''
+        SafetyEquipmentProvidedDescriptionText:
+          type: string
+          description: ''
+        SafetyEquipmentUsedIndicator:
+          type: boolean
+          description: ''
+        SalaryContinuanceIndicator:
+          type: boolean
+          description: ''
+    Endorsement:
+      type: object
+      description: A supplementary or official comment on a document which limits or extends its provisions.
+      properties:
+        PublishingOrganizationCode:
+          type: string
+          format: enum
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    Equipment:
+      type: object
+      description: A necessary item or object for a particular purpose.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        Timespan:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic applicable to this equipment.
+    Event:
+      type: object
+      description: 'A significant occurrence or happening related to a person, animal, object or process.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        OccurrenceDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DescriptionBinaryObject:
+          type: string
+          format: bianry
+          description: ''
+        UnitQuantity:
+          type: number
+          description: ''
+        RelatedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        FrequencyCode:
+          type: string
+          format: enum
+          description: ''
+        LocationIdentifier:
+          type: string
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        ValueMeasure:
+          type: number
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        RecordedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ActionCode:
+          type: string
+          format: enum
+          description: ''
+        DispositionCode:
+          type: string
+          format: enum
+          description: ''
+        InstanceIdentifier:
+          type: string
+          description: ''
+        OccurrenceLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: ''
+        OccurrencePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        RelatedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: ''
+        CertifyingParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        SpecifiedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: ''
+        DiscretePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: ''
+        RelatedCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: ''
+        ActualStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          description: ''
+        RelatedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: ''
+        AppliedProcess:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Process'
+          description: ''
+        SpecifiedGeographicalCoordinate:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/GeographicalCoordinate'
+          description: ''
+        RelatedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: ''
+        SubordinateEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: ''
+        ApplicableNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: ''
+    ExaminationResult:
+      type: object
+      description: The results of a detailed inspection.
+      properties:
+        EvaluationPointNumeric:
+          type: number
+          description: ''
+        ReasonText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ApprovalIndicator:
+          type: boolean
+          description: ''
+        ConditionText:
+          type: string
+          description: ''
+        BusinessTypeCode:
+          type: string
+          format: enum
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ApprovalDateTime:
+          type: string
+          format: date-time
+          description: ''
+        StatementText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        EvaluationScoreValue:
+          type: number
+          description: ''
+    Facility:
+      type: object
+      description: A structure or place that provides a particular service.
+      properties:
+        CategoryText:
+          type: string
+          description: ''
+        ConstructionDate:
+          type: string
+          format: date
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        MarketingPhraseText:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        RenovationDate:
+          type: string
+          format: date
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ActualPicture:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Picture'
+          description: An actual picture of this facility.
+        DefinedContact:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contact'
+          description: A defined contact for this facility.
+        OfferedService:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Service'
+          description: A service that is offered at this facility.
+        OperatingPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of operation for this facility.
+        PhysicalLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A physical location of this facility.
+        SpecifiedUsageCondition:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/UsageCondition'
+          description: A specified usage condition for this facility.
+    Fee:
+      type: object
+      description: 'A charge that is payable as remuneration, such as for membership in a society.'
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        RatePercent:
+          type: number
+          description: ''
+        ActualAmount:
+          type: number
+          description: ''
+        CreditIndicator:
+          type: boolean
+          description: ''
+        TypeDescriptionText:
+          type: string
+          description: ''
+        PaymentGuarantee:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Guarantee'
+          description: A guarantee of payment of this fee.
+    FinancialAccount:
+      type: object
+      description: 'A specific business arrangement whereby debits and/or credits arising from transactions are recorded, such as, a financial account with a bank, a financial account with a trading partner etc.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        AccountNameText:
+          type: string
+          description: ''
+        CurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        OwnerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that owns this financial account.
+        ServicerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that services this financial account on behalf of the account owner or owners.
+        InformationRecipientParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that is entitled to receive information about this financial account.
+        AgentParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that acts on behalf of another party related to this financial account.
+        ServicingFinancialInstitution:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialInstitution'
+          description: The financial institution that services this financial account.
+    FinancialCard:
+      type: object
+      description: A card used to represent a financial account.
+      properties:
+        MicrochipIndicator:
+          type: boolean
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        CardholderNameText:
+          type: string
+          description: ''
+        ExpiryDate:
+          type: string
+          format: date
+          description: ''
+        VerificationNumeric:
+          type: number
+          description: ''
+        ValidFromDateTime:
+          type: string
+          format: date-time
+          description: ''
+        CreditLimitAmount:
+          type: number
+          description: ''
+        CreditAvailableAmount:
+          type: number
+          description: ''
+        InterestRatePercent:
+          type: number
+          description: ''
+        IssuingCompanyNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    FinancialInstitution:
+      type: object
+      description: 'An institution, such as a bank, building society, credit union, stock brokerage, or similar business; established primarily to provide financial services and financial transactions.'
+      properties:
+        BEIIdentifier:
+          type: string
+          description: ''
+        BICIdentifier:
+          type: string
+          description: ''
+        GLNIdentifier:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        RoleCode:
+          type: string
+          format: enum
+          description: ''
+        ClearingSystemNameText:
+          type: string
+          description: ''
+        LocationAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: The postal address for this financial institution.
+        ResidenceCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: The country where this financial institution is located.
+        SubDivisionFinancialInstitution:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialInstitution'
+          description: A financial institution that is a sub-division (branch) of this financial institution.
+        OrganizationalUnitFinancialInstitution:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialInstitution'
+          description: A financial institution that is an organizational unit of this financial institution.
+    Gear:
+      type: object
+      description: An apparatus that is used for a particular purpose or activity.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        RoleCode:
+          type: string
+          format: enum
+          description: ''
+        IllustratePicture:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Picture'
+          description: A picture which illustrates this gear.
+        ApplicableCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic applicable to this gear.
+        RelatedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An event related to this gear.
+        AttachedEquipment:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Equipment'
+          description: Equipment attached to this gear.
+    GeographicalCoordinate:
+      type: object
+      description: 'A set of geographical coordinates of a specific point such as the longitude, latitude and altitude.'
+      properties:
+        AltitudeMeasure:
+          type: number
+          description: ''
+        LatitudeMeasure:
+          type: number
+          description: ''
+        LongitudeMeasure:
+          type: number
+          description: ''
+        LatitudeDirectionIndicator:
+          type: boolean
+          description: ''
+        LongitudeDirectionIndicator:
+          type: boolean
+          description: ''
+        SystemIdentifier:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        AltimetricSystemIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    GrossPremium:
+      type: object
+      description: The amount payable for a contract of insurance.
+      properties:
+        ActualAmount:
+          type: number
+          description: ''
+        RetainedIndicator:
+          type: boolean
+          description: ''
+        CreditIndicator:
+          type: boolean
+          description: ''
+    Guarantee:
+      type: object
+      description: Information about the guarantee of a contractual or financial obligation.
+      properties:
+        DescriptionText:
+          type: string
+          description: ''
+        LiabilityAmount:
+          type: number
+          description: ''
+        ExemptionIndicator:
+          type: boolean
+          description: ''
+        AmountRate:
+          type: number
+          description: ''
+        ConditionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        CalculationRate:
+          type: number
+          description: ''
+        CreditChargeOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: An organization which has the authority to charge guarantee credit which is accompanied by placing an order.
+        EffectivePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period within which this guarantee is effective.
+        IncurredPenaltyCharge:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PenaltyCharge'
+          description: Penalty charge information incurred under this guarantee.
+        ReferenceDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A document referenced by this guarantee.
+        SubscriberOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: A subscriber organization which requests the issue of this guarantee.
+        SupportingDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A supporting document for this guarantee.
+        SuretyProviderParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that provides a surety for this guarantee.
+        InvalidCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: A country where this guarantee is invalid.
+        RequesterParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A requesting party for this guarantee.
+    Identity:
+      type: object
+      description: 'Information which uniquely identifies a person, organization, animal or object.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        Identifier:
+          type: string
+          description: ''
+        LengthNumeric:
+          type: number
+          description: ''
+        IssuerPartyNameText:
+          type: string
+          description: ''
+        LegalBasisText:
+          type: string
+          description: ''
+        ValidFromDateTime:
+          type: string
+          format: date-time
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period for which this identity is valid.
+        IssuingParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party issuing this identity.
+    Injury:
+      type: object
+      description: Physical damage or loss to a person.
+      properties:
+        NatureCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        SeverityCode:
+          type: string
+          format: enum
+          description: ''
+        BodyPartCode:
+          type: string
+          format: enum
+          description: ''
+        BodyPartDescriptionText:
+          type: string
+          description: ''
+        ImpairmentPercent:
+          type: number
+          description: ''
+    Instructions:
+      type: object
+      description: 'Information of an instructive or teaching nature that tells someone how to manage, manipulate, control, or cope with something.'
+      properties:
+        HandlingCode:
+          type: string
+          format: enum
+          description: ''
+        HandlingText:
+          type: string
+          description: ''
+        RequirementIndicator:
+          type: boolean
+          description: ''
+        ProcedureText:
+          type: string
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        ItemNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        ApplicableMeasure:
+          type: number
+          description: ''
+        ApplicableQuantity:
+          type: number
+          description: ''
+        ExclusiveUsageIndicator:
+          type: boolean
+          description: ''
+        SpecifiedAmount:
+          type: number
+          description: ''
+        MaterialIdentifier:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        SequenceNumeric:
+          type: number
+          description: ''
+        UpdateDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PropertyReferenceCode:
+          type: string
+          format: enum
+          description: ''
+        ApplicableTemperature:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Temperature'
+          description: A temperature applicable to these instructions.
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period during which these instructions are valid.
+    Licence:
+      type: object
+      description: 'A permit from an authority to own or use something, do a particular thing, or carry on a trade.'
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        HeldDurationMeasure:
+          type: number
+          description: ''
+        RestrictionIndicator:
+          type: boolean
+          description: ''
+        IssueReasonCode:
+          type: string
+          format: enum
+          description: ''
+        FirstIssuedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        AuthorityAssignedIdentificationIdentifier:
+          type: string
+          description: ''
+        TestPassedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SuspensionRevocationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SuspensionRevocationReasonCode:
+          type: string
+          format: enum
+          description: ''
+        ReinstatementDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TestPassedCountryIdentifier:
+          type: string
+          description: ''
+        UnexpiredPenaltyPointQuantity:
+          type: number
+          description: ''
+        RegulatoryJurisdictionText:
+          type: string
+          description: ''
+        SuspensionRevocationReasonText:
+          type: string
+          description: ''
+        EffectivePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period of time for which this licence is effective.
+        SpecifiedLicenceRestriction:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/LicenceRestriction'
+          description: A restriction specified for this licence.
+        AssociatedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: The document associated with this licence.
+        PreviousLicence:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Licence'
+          description: A previous licence associated with this licence.
+        LapsePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of time for which this licence has lapsed.
+        SuspensionPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of time for which this license was or is suspended by an authority.
+    LicenceRestriction:
+      type: object
+      description: 'A limitation that has been placed on the licence, such as daylight driving only or a restaurant without alcohol.'
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    Location:
+      type: object
+      description: A physical location or place.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DirectionsText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DistrictIdentifier:
+          type: string
+          description: ''
+        CountryNameText:
+          type: string
+          description: ''
+        CountrySub-DivisionNameText:
+          type: string
+          description: ''
+        CountryIdentifier:
+          type: string
+          description: ''
+        CountrySub-DivisionIdentifier:
+          type: string
+          description: ''
+        GeopoliticalRegionNameText:
+          type: string
+          description: ''
+        GeopoliticalRegionCode:
+          type: string
+          format: enum
+          description: ''
+        CountrySuperordinateIdentifier:
+          type: string
+          description: ''
+        UTCOffsetNumeric:
+          type: number
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        RelatedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        ConditionCode:
+          type: string
+          format: enum
+          description: ''
+        PossessionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ManagementOrganizationCode:
+          type: string
+          format: enum
+          description: ''
+        ReferenceCode:
+          type: string
+          format: enum
+          description: ''
+        PhysicalGeographicalCoordinate:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/GeographicalCoordinate'
+          description: Geographical coordinate information for this location.
+        PostalAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: Postal address information for this location.
+        SubordinateLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: Subordinate location information within this location.
+        SpecifiedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party specified for this location.
+        PhysicalAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: The physical address of this location.
+        AvailabilityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: An availability period for a location.
+        SpecifiedFacility:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Facility'
+          description: A facility specified for this location.
+        SpecifiedCountrySubDivision:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CountrySubDivision'
+          description: A country sub-division specified for this location.
+        SpecifiedArea:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Area'
+          description: An area specified for this location.
+        ApplicableTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: A tax applicable at a location.
+        RelatedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location related to this location.
+        ApplicableCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic applicable to this location.
+        SpecifiedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An event specified for this location.
+        ResponsibleParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party responsible for this location.
+        SpecifiedAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: An address specified for this location.
+    Measurement:
+      type: object
+      description: 'An amount, size, or extent as established by measuring.'
+      properties:
+        ComparisonOperatorCode:
+          type: string
+          format: enum
+          description: ''
+        ActualMeasure:
+          type: number
+          description: ''
+        MethodText:
+          type: string
+          description: ''
+        ConditionMeasure:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        ValueMeasure:
+          type: number
+          description: ''
+        QuantificationTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ToleranceMeasure:
+          type: number
+          description: ''
+        TolerancePercent:
+          type: number
+          description: ''
+        ValueCode:
+          type: string
+          format: enum
+          description: ''
+        BasisCode:
+          type: string
+          format: enum
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+    Membership:
+      type: object
+      description: 'The state of belonging to a group, such as a club or trade association.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        StartDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ProvidingOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: The organization providing this membership.
+    Metrics:
+      type: object
+      description: Quantitative information about a system of parameters for assessment purposes.
+      properties:
+        DescriptionText:
+          type: string
+          description: ''
+        ReportedQuantity:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        MeasuredPercent:
+          type: number
+          description: ''
+        AverageQuantity:
+          type: number
+          description: ''
+        OriginQuantity:
+          type: number
+          description: ''
+        ProductionQuantity:
+          type: number
+          description: ''
+        TotalQuantity:
+          type: number
+          description: ''
+        UsedQuantity:
+          type: number
+          description: ''
+        ProductTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ProjectedPackagedYieldNumeric:
+          type: number
+          description: ''
+        SpecifiedCheckpoint:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Checkpoint'
+          description: A specified checkpoint for these metrics.
+    Note:
+      type: object
+      description: 'A textual or coded description, such as a remark or additional information.'
+      properties:
+        SubjectText:
+          type: string
+          description: ''
+        ContentCode:
+          type: string
+          format: enum
+          description: ''
+        ContentText:
+          type: string
+          description: ''
+        SubjectCode:
+          type: string
+          format: enum
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        CreationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ContactPerson:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Person'
+          description: A contact person for this note.
+        AuthorOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: An organization authoring this note.
+    Occupation:
+      type: object
+      description: A person's job or profession.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        ClassCode:
+          type: string
+          format: enum
+          description: ''
+        RankingCode:
+          type: string
+          format: enum
+          description: ''
+        Full-TimeIndicator:
+          type: boolean
+          description: ''
+        HeldPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of time during which this occupation has been held.
+    Organization:
+      type: object
+      description: 'An organized structure set up for a particular purpose, such as a business, government body, department, charity, or financial institution.'
+      properties:
+        BusinessTypeCode:
+          type: string
+          format: enum
+          description: ''
+        LegalClassificationCode:
+          type: string
+          format: enum
+          description: ''
+        TaxRegistrationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DistrictIdentifier:
+          type: string
+          description: ''
+        TradeMarkText:
+          type: string
+          description: ''
+        AbbreviatedNameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        FunctionCode:
+          type: string
+          format: enum
+          description: ''
+        EstablishedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TrustTypeCode:
+          type: string
+          format: enum
+          description: ''
+        OwnerQuantity:
+          type: number
+          description: ''
+        DBANameText:
+          type: string
+          description: ''
+        TradingBusinessNameText:
+          type: string
+          description: ''
+        DivisionNameText:
+          type: string
+          description: ''
+        OrganizationalUnitIdentifier:
+          type: string
+          description: ''
+        OrganizationalUnitFunctionCode:
+          type: string
+          format: enum
+          description: ''
+        ProfitObjectiveCode:
+          type: string
+          format: enum
+          description: ''
+        DissolvedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PubliclyTradedIndicator:
+          type: boolean
+          description: ''
+        TaxExemptIndicator:
+          type: boolean
+          description: ''
+        BusinessDurationMeasure:
+          type: number
+          description: ''
+        ActiveIndicator:
+          type: boolean
+          description: ''
+        OperationsScopeCode:
+          type: string
+          format: enum
+          description: ''
+        OperationsDescriptionText:
+          type: string
+          description: ''
+        DomesticLocationQuantity:
+          type: number
+          description: ''
+        ForeignLocationQuantity:
+          type: number
+          description: ''
+        MembersAndManagersQuantity:
+          type: number
+          description: ''
+        CompanyMergerDateTime:
+          type: string
+          format: date-time
+          description: ''
+        MergedCompanyNameText:
+          type: string
+          description: ''
+        CompanyNameChangeDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PreviousNameText:
+          type: string
+          description: ''
+        BrokerRelationshipDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ParentText:
+          type: string
+          description: ''
+        LanguageCode:
+          type: string
+          format: enum
+          description: ''
+        ParentIdentifier:
+          type: string
+          description: ''
+        NameChangeDateTime:
+          type: string
+          format: date-time
+          description: ''
+        CapitalValueAmount:
+          type: number
+          description: ''
+        DomesticRegisteredIndicator:
+          type: boolean
+          description: ''
+        PrimaryContact:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contact'
+          description: A primary contact information for this organization.
+        SubordinateOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: An organization subordinate to this organization.
+        PostalAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: A postal address for this organization.
+        PhysicalLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A physical location for this organization.
+        DesignatedContact:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contact'
+          description: Information for a designated contact within this organization.
+        InternalUnitOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: An internal unit within this organization.
+        CompanyBranchOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: A company branch of this organization.
+        FieldOfficeOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: A field office of this organization.
+        SpecifiedEmployeeCount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/EmployeeCount'
+          description: An employee count specified for this organization.
+        OperatingUnderPresentNamePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period during which the organization has been operating under its present name.
+        OperatingPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period during which the organization has actually been operating.
+        PrimaryPerson:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Person'
+          description: The primary person for this organization.
+        ParentOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: A parent organization of this organization.
+        DesignatedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A designated party for this organization.
+        AuthorizedPerson:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Person'
+          description: A person who is authorized to act for this organization.
+        SpecifiedOwnership:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Ownership'
+          description: A specified ownership for this organization.
+        PhysicalAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: A physical address for this organization.
+        ResponsibleParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party responsible for this organization.
+    Ownership:
+      type: object
+      description: 'The state or fact of exclusive legal rights and control over something such as property, a vehicle, an organization or intangible items, such as a lease or drilling rights.'
+      properties:
+        OwnerRoleCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        OwnerPurchaseDateTime:
+          type: string
+          format: date-time
+          description: ''
+        OwnerAcquisitionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        LeaseEffectiveDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        OwnedPercent:
+          type: number
+          description: ''
+        OwnerParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: An owner party for this ownership.
+        OwningParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: An owning party for this ownership.
+    Parameter:
+      type: object
+      description: A feature that is fixed for the case in question but may be different in other cases.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        ValueText:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        ValueMeasure:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ValueAllowedIndicator:
+          type: boolean
+          description: ''
+        SpecifiedVersion:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Version'
+          description: The version specified for the parameter.
+    Party:
+      type: object
+      description: 'An individual, a group, or a body having a role in a business function.  Party has a legal connotation in a business transaction.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        AccessRightsCode:
+          type: string
+          format: enum
+          description: ''
+        ClassificationCode:
+          type: string
+          format: enum
+          description: ''
+        RoleCode:
+          type: string
+          format: enum
+          description: ''
+        LanguageCode:
+          type: string
+          format: enum
+          description: ''
+        ResidenceCountryIdentifier:
+          type: string
+          description: ''
+        CountryIdentifier:
+          type: string
+          description: ''
+        BranchIndicator:
+          type: boolean
+          description: ''
+        AssignedToRoleDateTime:
+          type: string
+          format: date-time
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        RatingCode:
+          type: string
+          format: enum
+          description: ''
+        SpecifiedOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: The organization specified for this party.
+        ActionEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An action taken for an event by or in behalf of the party.
+        DefinedContact:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Contact'
+          description: A defined contact for this party.
+        ResidenceAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: The residence address for this party.
+        PostalAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: A postal address for this party.
+        ApplicableMembership:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Membership'
+          description: A membership applicable to this party.
+        TelephoneCommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: A telephone communication for this party.
+        FaxCommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: A fax communication for this party.
+        URICommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: 'A Uniform Resource Identifier (URI) communication for this party, such as a web or email address.'
+        ProvidedService:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Service'
+          description: A service provided by this party.
+        AssociatedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: 'A party associated with this party, such as a local agent of a shipping line.'
+        SpecifiedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location or place specified for this party.
+        ReferencedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A document referenced by this party.
+        OfficeAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: An office address for this party.
+        SpecifiedPartyGroup:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PartyGroup'
+          description: The party group specified for this party.
+        AppointedPerson:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Person'
+          description: An appointed person for this party.
+        AssociatedBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: 'A binary file associated with this party, such as the binary representation of a picture or company logo.'
+        HeldLicence:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Licence'
+          description: A licence held by this party.
+        OwnedFinancialAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialAccount'
+          description: A financial account owned by this party.
+        SpecifiedCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: A country specified for this party.
+        ParentParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party that is a parent of this party.
+        DesignatedParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A designated party for this party.
+    PartyGroup:
+      type: object
+      description: 'A collection of individuals, such as a group of similar employees, a group of drivers, a group of homeowners, or a travel group.'
+      properties:
+        DescriptionText:
+          type: string
+          description: ''
+        EffectiveDateTime:
+          type: string
+          format: date-time
+          description: ''
+        FullNameText:
+          type: string
+          description: ''
+        OperatingStatusCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        MemberQuantity:
+          type: number
+          description: ''
+        PurposeCode:
+          type: string
+          format: enum
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        AdultQuantity:
+          type: number
+          description: ''
+        ChildrenQuantity:
+          type: number
+          description: ''
+        SeniorsQuantity:
+          type: number
+          description: ''
+        CouplesQuantity:
+          type: number
+          description: ''
+        FamilyQuantity:
+          type: number
+          description: ''
+        InfantQuantity:
+          type: number
+          description: ''
+        SingleParentFamilyQuantity:
+          type: number
+          description: ''
+        SpecifiedPerson:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Person'
+          description: A specified person in the party group.
+    Payment:
+      type: object
+      description: Discharge obligations in respect of funds or securities transferred between two or more parties.
+      properties:
+        InstructionIdentifier:
+          type: string
+          description: ''
+        ReceivedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PaidAmount:
+          type: number
+          description: ''
+        TaxAmount:
+          type: number
+          description: ''
+        CreationDateTime:
+          type: string
+          format: date-time
+          description: ''
+        RequestedExecutionDateTime:
+          type: string
+          format: date-time
+          description: ''
+        InstructionCode:
+          type: string
+          format: enum
+          description: ''
+        PriorityCode:
+          type: string
+          format: enum
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        PenaltyPercent:
+          type: number
+          description: ''
+        DiscountPercent:
+          type: number
+          description: ''
+        DueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ServiceLevelCode:
+          type: string
+          format: enum
+          description: ''
+        ServiceLevelText:
+          type: string
+          description: ''
+        ClearingChannelCode:
+          type: string
+          format: enum
+          description: ''
+        LocalInstrumentCode:
+          type: string
+          format: enum
+          description: ''
+        PoolingAdjustmentDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EntitlementIndicator:
+          type: boolean
+          description: ''
+        SequenceCode:
+          type: string
+          format: enum
+          description: ''
+        PayerAssignedReferenceIdentifier:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        AcceptedAmount:
+          type: number
+          description: ''
+        RequestedAmount:
+          type: number
+          description: ''
+    PaymentDiscountTerms:
+      type: object
+      description: Terms and conditions by which a payment discount is or can be applied to a payable amount.
+      properties:
+        BasisDateTime:
+          type: string
+          format: date-time
+          description: ''
+        BasisPeriodMeasure:
+          type: number
+          description: ''
+        BasisAmount:
+          type: number
+          description: ''
+        CalculationPercent:
+          type: number
+          description: ''
+        ActualDiscountAmount:
+          type: number
+          description: ''
+        SettlementPeriodMeasure:
+          type: number
+          description: ''
+    PaymentMeans:
+      type: object
+      description: Details of the means by which the payment will be or has been made.
+      properties:
+        PaymentChannelCode:
+          type: string
+          format: enum
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        GuaranteeMethodCode:
+          type: string
+          format: enum
+          description: ''
+        PaidAmount:
+          type: number
+          description: ''
+        PaymentMethodCode:
+          type: string
+          format: enum
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+    PaymentPenaltyTerms:
+      type: object
+      description: Terms and conditions by which a payment penalty is or can be applied to a payable amount.
+      properties:
+        BasisDateTime:
+          type: string
+          format: date-time
+          description: ''
+        BasisPeriodMeasure:
+          type: number
+          description: ''
+        BasisAmount:
+          type: number
+          description: ''
+        CalculationPercent:
+          type: number
+          description: ''
+        ActualPenaltyAmount:
+          type: number
+          description: ''
+        SettlementPeriodMeasure:
+          type: number
+          description: ''
+        SettlementCurrencyExchange:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CurrencyExchange'
+          description: A currency exchange that is used in the settlement of the payment.
+        AgentParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party that an acts on behalf of another party as an agent in the payment chain to carry out payment.
+        IdentifiedPaymentMeans:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PaymentMeans'
+          description: A payment means identified for this payment.
+        IdentifiedPaymentTerms:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PaymentTerms'
+          description: Payment terms identified for this payment.
+        AdministrationFee:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Fee'
+          description: A fee charged for payment administration which is part of the total payment amount for this payment.
+        IdentifiedGuarantee:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Guarantee'
+          description: A guarantee identified for this payment.
+        SpecifiedFinancialAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialAccount'
+          description: A financial account specified for this payment.
+        PayeeParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A payee party for this payment.
+        RequesterParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A requesting party for this payment.
+        IncludedTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: A tax included in this payment.
+    PaymentTerms:
+      type: object
+      description: Terms and conditions by which payment has been or will be made.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DueDateDateTime:
+          type: string
+          format: date-time
+          description: ''
+        DurationMeasure:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        SettlementDiscountRate:
+          type: number
+          description: ''
+        SettlementSurchargeRate:
+          type: number
+          description: ''
+        SettlementPeriodMeasure:
+          type: number
+          description: ''
+        SettlementDiscountAmount:
+          type: number
+          description: ''
+        FromEventCode:
+          type: string
+          format: enum
+          description: ''
+        EquivalentAmount:
+          type: number
+          description: ''
+        InstructedAmount:
+          type: number
+          description: ''
+        PaymentTransactionTypeIndicator:
+          type: boolean
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        CurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        InstructionCode:
+          type: string
+          format: enum
+          description: ''
+        PartialPaymentPercent:
+          type: number
+          description: ''
+        AdditionalPostponementCode:
+          type: string
+          format: enum
+          description: ''
+        PartialPaymentAmount:
+          type: number
+          description: ''
+        DueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        SettlementPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period over which the settlement terms are offered as part of the payment terms.
+        PenaltyPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period after which a penalty is charged as part of the payment terms.
+        ApplicablePaymentPenaltyTerms:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PaymentPenaltyTerms'
+          description: Payment penalty terms applicable to these payment terms.
+        ApplicablePaymentDiscountTerms:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PaymentDiscountTerms'
+          description: Payment discount terms applicable to these payment terms.
+        AgentParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: The party that acts on behalf of another party for these payment terms.
+        RelatedFinancialAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialAccount'
+          description: The financial account related to these payment terms.
+        PayeeParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A payee party in these payment terms.
+    PenaltyCharge:
+      type: object
+      description: A charge that may be applied or agreed upon as a penalty for a breach of rule or contract.
+      properties:
+        DueAmount:
+          type: number
+          description: ''
+        CalculationRate:
+          type: number
+          description: ''
+        ExemptionIndicator:
+          type: boolean
+          description: ''
+        ConditionText:
+          type: string
+          description: ''
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period within which this penalty charge is valid or effective.
+        ReferenceDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: Document information referenced by this penalty charge.
+    PerformanceMeasurement:
+      type: object
+      description: 'A means of calculating a benefit gained by or penalty against a person or organization, based on predefined criteria.'
+      properties:
+        CalculationPercent:
+          type: number
+          description: ''
+        BasisAmount:
+          type: number
+          description: ''
+        ActualAmount:
+          type: number
+          description: ''
+        CalculatedAmount:
+          type: number
+          description: ''
+    Period:
+      type: object
+      description: 'A specific period of time such as the length of time between two known date/time points, from a start date onwards, or up to an end date.'
+      properties:
+        DurationMeasure:
+          type: number
+          description: ''
+        InclusiveIndicator:
+          type: boolean
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        StartDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        CompleteDateTime:
+          type: string
+          format: date-time
+          description: ''
+        OpenIndicator:
+          type: boolean
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        SeasonCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        SequenceNumeric:
+          type: number
+          description: ''
+        ContinuousIndicator:
+          type: boolean
+          description: ''
+        PurposeCode:
+          type: string
+          format: enum
+          description: ''
+        DayOfWeekCode:
+          type: string
+          format: enum
+          description: ''
+        FunctionCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        DurationCode:
+          type: string
+          format: enum
+          description: ''
+    Person:
+      type: object
+      description: An individual human being.
+      properties:
+        ResidenceAddress:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: A residence address for this person.
+        NationalityCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: 'A country that constitutes a nationality by origin, birth, or naturalization for this person.'
+        TelephoneCommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: Telephone communication information for this person.
+        FaxCommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: Fax communication information for this person.
+        URICommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: Uniform Resource Identifier (URI) communication information for this person such as a web or email address.
+        FiliationPerson:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Person'
+          description: 'A person that is a filiation of this person, such as a child.'
+        ApplicablePersonFinancialSituation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/PersonFinancialSituation'
+          description: The financial situation applicable to this person.
+        AttainedQualification:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Qualification'
+          description: A qualification attained by this person.
+        SpecifiedOccupation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Occupation'
+          description: An occupation specified for this person.
+        SpecificAccreditation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Accreditation'
+          description: A specific accreditation for this person.
+        SustainedInjury:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Injury'
+          description: An injury sustained by this person.
+        HeldMembership:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Membership'
+          description: A membership held by this person.
+        AdditionalNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: An additional note for this person.
+        SpecifiedCertificate:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Certificate'
+          description: A certificate specified for this person.
+    PersonFinancialSituation:
+      type: object
+      description: 'The financial situation of a person, such as income and savings.'
+      properties:
+        EstimatedGrossAnnualNonSalaryIncomeAmount:
+          type: number
+          description: ''
+        EstimatedAnnualSalaryAmount:
+          type: number
+          description: ''
+        IncomeInformationFromPersonIndicator:
+          type: boolean
+          description: ''
+        NetIncomeAmount:
+          type: number
+          description: ''
+        NetSavingsAmount:
+          type: number
+          description: ''
+        EstimatedNetWorthAmount:
+          type: number
+          description: ''
+        TotalAnnualIncomeAmount:
+          type: number
+          description: ''
+        DisposableIncomeAmount:
+          type: number
+          description: ''
+        FixedAssetAmount:
+          type: number
+          description: ''
+        GrossAnnualIncomeRangeText:
+          type: string
+          description: ''
+        LiquidAssetAmount:
+          type: number
+          description: ''
+        EstimatedTotalLiabilitiesAmount:
+          type: number
+          description: ''
+        LiquidNetWorthAmount:
+          type: number
+          description: ''
+    Picture:
+      type: object
+      description: 'A painting, drawing, or photograph represented as a digital image for electronic sharing.'
+      properties:
+        AreaIncludedText:
+          type: string
+          description: ''
+        CopyrightOwnerNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DigitalImageBinaryObject:
+          type: string
+          format: binary
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        SubjectText:
+          type: string
+          description: ''
+        TakenDateTime:
+          type: string
+          format: date-time
+          description: ''
+        TitleNameText:
+          type: string
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        AreaIncludedIdentifier:
+          type: string
+          description: ''
+    Preference:
+      type: object
+      description: 'Precedence, advantage, or choice of one person or thing over another.'
+      properties:
+        PriorityRankingNumeric:
+          type: number
+          description: ''
+        PreferredIndicator:
+          type: boolean
+          description: ''
+        SolicitationIndicator:
+          type: boolean
+          description: ''
+        NoMarketingIndicator:
+          type: boolean
+          description: ''
+        UnavailablePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period when a preference is not available.
+        AvailablePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period when a preference is available.
+    Price:
+      type: object
+      description: A sum of money for which something is or may be bought or sold.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ChargeAmount:
+          type: number
+          description: ''
+        BasisQuantity:
+          type: number
+          description: ''
+        NetPriceIndicator:
+          type: boolean
+          description: ''
+        MinimumChargeAmount:
+          type: number
+          description: ''
+        MaximumChargeAmount:
+          type: number
+          description: ''
+        MinimumQuantity:
+          type: number
+          description: ''
+        MaximumQuantity:
+          type: number
+          description: ''
+        UnitAmount:
+          type: number
+          description: ''
+        ChangeReasonText:
+          type: string
+          description: ''
+        UnitConversionFactorNumeric:
+          type: number
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        CalculationPercent:
+          type: number
+          description: ''
+        ChargeApplicableIndicator:
+          type: boolean
+          description: ''
+        CommissionPaidIndicator:
+          type: boolean
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        ReasonApplicableQuantity:
+          type: number
+          description: ''
+        DeterminationCode:
+          type: string
+          format: enum
+          description: ''
+        ComparisonMethodCode:
+          type: string
+          format: enum
+          description: ''
+        ChargeDateTime:
+          type: string
+          format: date-time
+          description: ''
+        CustomerServicePointQuantity:
+          type: number
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period for which this price is valid.
+        AppliedAllowanceCharge:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AllowanceCharge'
+          description: Allowances and charges applied to the price.
+        RelatedAllowanceCharge:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AllowanceCharge'
+          description: Allowance charge information related to this price.
+        IncludedTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: A tax included in this price.
+        ReferencedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A referenced document for this price.
+        AdditionalInformationNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: Additional information for a price.
+        ApplicableCustomerClass:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CustomerClass'
+          description: A customer class applicable to a price.
+        DeliveryLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A delivery location for this price.
+        ComparisonPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A price that provides a comparison with this price.
+        ChargedPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: 'A price charged for this price, such as a discount price.'
+        ChargedTax:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Tax'
+          description: A tax charged for this price.
+    Problem:
+      type: object
+      description: A matter or situation regarded as unwelcome or harmful and needing to be dealt with and overcome.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        AffectedQuantity:
+          type: number
+          description: ''
+        RecoveryMeasureCode:
+          type: string
+          format: enum
+          description: ''
+        SpecifiedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location specified for this problem.
+        RelatedGear:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Gear'
+          description: A gear related to this problem.
+    Process:
+      type: object
+      description: A naturally occurring or designed sequence of operations or events.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        StepNumberNumeric:
+          type: number
+          description: ''
+        ContractIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        StartDateTime:
+          type: string
+          format: date-time
+          description: ''
+        EndDateTime:
+          type: string
+          format: date-time
+          description: ''
+        PlatformText:
+          type: string
+          description: ''
+        SequenceNumberIdentifier:
+          type: string
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        ResourceIdentificationText:
+          type: string
+          description: ''
+        ResourceTypeText:
+          type: string
+          description: ''
+        YieldPercent:
+          type: number
+          description: ''
+        ObservationCode:
+          type: string
+          format: enum
+          description: ''
+        ResourceTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ProcedureCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        DocumentIndicator:
+          type: boolean
+          description: ''
+        UrgencyIndicator:
+          type: boolean
+          description: ''
+        CurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        LanguageCode:
+          type: string
+          format: enum
+          description: ''
+        FeeIndicator:
+          type: boolean
+          description: ''
+        FeeAmount:
+          type: number
+          description: ''
+        CompletionPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of completion for this process.
+        OccurrenceEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An event whose occurrence is related to this process.
+        SubordinateProcess:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Process'
+          description: A subordinate process of this process.
+        RequestedService:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Service'
+          description: A service that is requested in support of this process.
+        ApplicableCharacteristic:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Characteristic'
+          description: A characteristic applicable to this process.
+        OperationCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: A country where the operation of this process occurs.
+        OperationCountrySubDivision:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/CountrySubDivision'
+          description: A country sub-division where the operation of this process occurs.
+        OperatorParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party who is an operator of this process.
+        ActualMeasurement:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Measurement'
+          description: An actual measurement for this process.
+        ApplicableProcessStep:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ProcessStep'
+          description: A process step applicable to this process.
+        AdditionalInformationNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: A note with additional information for this process.
+        ReferencedDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A document referenced in this process.
+        ApplicableLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location applicable to this process.
+        ThresholdPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A price point at which this process starts or ends.
+    ProcessStep:
+      type: object
+      description: A stage within a process.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        SequenceNumeric:
+          type: number
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    Programme:
+      type: object
+      description: 'A set of related measures, activities or projects with a common goal.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        SponsorNameText:
+          type: string
+          description: ''
+    Project:
+      type: object
+      description: 'An endeavour carefully planned to achieve a unique product, service, or other particular aim such as a construction project.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ConstraintIndicator:
+          type: boolean
+          description: ''
+        BudgetAmount:
+          type: number
+          description: ''
+        WorksTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ContractIdentifier:
+          type: string
+          description: ''
+        ProjectPortfolioIdentifier:
+          type: string
+          description: ''
+        PurposeCode:
+          type: string
+          format: enum
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        LargerAgreementPartIndicator:
+          type: boolean
+          description: ''
+        BaselineCalendar:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Calendar'
+          description: A baseline calendar for this project.
+        PhysicalLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A physical location for this project.
+        PlanPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A planned period for this project.
+        ManagedCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: A cost that is managed within this project.
+        ManagementReserveCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: A management reserve cost item set aside for contingencies that is accounted for as a cost for this project.
+        UndistributedBudgetCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: An undistributed budget item that has not been allocated to any task that is accounted for as a cost for this project.
+        OverheadCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: An overhead cost item representing routine administrative and maintenance expenses for this project.
+        FundsBorrowedCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: A cost of funds borrowed for this project.
+        TotalCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: A total cost for this project.
+        SpecifiedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: An event specified for this project.
+    ProjectPortfolio:
+      type: object
+      description: A collection of one or more projects that are tracked together.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        CategoryText:
+          type: string
+          description: ''
+        ComponentProject:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Project'
+          description: A project that is a component of this project portfolio.
+        ManagementReserveCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: A management reserve is a reserve that is set aside for contingencies and which is accounted for as a cost for this project portfolio.
+    Qualification:
+      type: object
+      description: A condition that must be fulfilled.
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        AbbreviatedNameText:
+          type: string
+          description: ''
+        EndorsementCode:
+          type: string
+          format: enum
+          description: ''
+        ExaminationResult:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ExaminationResult'
+          description: Examination results required for this qualification.
+        IssuingCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: The country issuing this qualification.
+        CertificationDocument:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Document'
+          description: A certification document for this qualification.
+    Reference:
+      type: object
+      description: 'A direction, more or less precise, to related information.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        AbbreviationText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        StatusText:
+          type: string
+          description: ''
+        CommentText:
+          type: string
+          description: ''
+        ValueText:
+          type: string
+          description: ''
+        PropertyReferenceCode:
+          type: string
+          format: enum
+          description: ''
+        ValueCode:
+          type: string
+          format: enum
+          description: ''
+    Resource:
+      type: object
+      description: 'A stock or supply of people, materials, or assets.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        AvailabilityQuantity:
+          type: number
+          description: ''
+        UnitCostAmount:
+          type: number
+          description: ''
+        UnitCostMeasureCode:
+          type: string
+          format: enum
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        AvailabilityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period when this resource is available.
+        ScheduleCalendar:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Calendar'
+          description: A schedule calendar for this resource.
+    RetainedBalance:
+      type: object
+      description: The balance of payments that are held as credit by the insurer.
+      properties:
+        TotalAmount:
+          type: number
+          description: ''
+        SpecifiedGrossPremium:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/GrossPremium'
+          description: A gross premium specified for this retained balance.
+    RevisionMethod:
+      type: object
+      description: A defined method for adjusting or revising something.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        VersionText:
+          type: string
+          description: ''
+        TitleText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        FormulaText:
+          type: string
+          description: ''
+        SpecifiedPercent:
+          type: number
+          description: ''
+    Route:
+      type: object
+      description: A way or course taken from one location to another.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DeparturePointText:
+          type: string
+          description: ''
+        MapBinaryObject:
+          type: string
+          format: binary
+          description: ''
+        TransportMeansText:
+          type: string
+          description: ''
+        FrequencyTypeCode:
+          type: string
+          format: enum
+          description: ''
+        DistanceMeasure:
+          type: number
+          description: ''
+        CoordinateSystemIdentifier:
+          type: string
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ItineraryStopEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: 'An itinerary stop event for this route, such as a port call in a vessel schedule.'
+        ScheduledPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A scheduled period for this route.
+        FrequencyEffectivePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period of time for which a frequency is effective for this route.
+        StartLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A start location for this route.
+        EndLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: An end location for this route.
+        SubordinateRoute:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Route'
+          description: 'A subordinate route of this route, such as a section of this route.'
+        CustomsOrganization:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Organization'
+          description: A customs organization for this route.
+    Service:
+      type: object
+      description: Work or the doing of work for another or community to include utilities and transport.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        ChargeAmount:
+          type: number
+          description: ''
+        RequirementIndicator:
+          type: boolean
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        PerformanceDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ItemQuantity:
+          type: number
+          description: ''
+        PriorityCode:
+          type: string
+          format: enum
+          description: ''
+        ServiceRequirementCode:
+          type: string
+          format: enum
+          description: ''
+        RecurrenceQuantity:
+          type: number
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        PaymentArrangementCode:
+          type: string
+          format: enum
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        AcknowledgementPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period of acknowledgement for this service.
+        PerformancePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: The period of performance for this period.
+        SpecificServiceOption:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ServiceOption'
+          description: A specific service option for this service.
+        URICommunication:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Communication'
+          description: 'A Uniform Resource Identifier (URI) communication for this service, such as a web or email address.'
+        SpecifiedRoute:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Route'
+          description: A route specified for this service.
+        EffectivePeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period when this service is effective.
+        SpecifiedCost:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Cost'
+          description: The specified cost of this service.
+        RequesterParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party requesting this service.
+        ResponsibleParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A party responsible for this service.
+    ServiceOption:
+      type: object
+      description: A service item that may be chosen.
+      properties:
+        AvailabilityText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        PriceText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ActualPicture:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Picture'
+          description: An actual picture of this service option.
+        ApplicableUsageCondition:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/UsageCondition'
+          description: A prescribed usage condition for this option.
+        OperatingPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: An operating period for this service option.
+    Standard:
+      type: object
+      description: 'A norm or requirement that establishes uniform criteria, methods, processes and practices, such as in engineering or technical areas.'
+      properties:
+        URIIdentifier:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        VersionIdentifier:
+          type: string
+          description: ''
+        ElementVersionIdentifier:
+          type: string
+          description: ''
+        AgencyIdentifier:
+          type: string
+          description: ''
+    Status:
+      type: object
+      description: The information relevant to a condition or a position of an object or event.
+      properties:
+        ConditionCode:
+          type: string
+          format: enum
+          description: ''
+        ReferenceDateTime:
+          type: string
+          format: date-time
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        ReasonCode:
+          type: string
+          format: enum
+          description: ''
+        ReasonText:
+          type: string
+          description: ''
+        SequenceNumeric:
+          type: number
+          description: ''
+        ChangedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        InformationText:
+          type: string
+          description: ''
+        ConditionIndicator:
+          type: boolean
+          description: ''
+        ChangerNameText:
+          type: string
+          description: ''
+        ReportedDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ConditionText:
+          type: string
+          description: ''
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A valid period for this status.
+        SpecifiedLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location specified for this status.
+        ContactParty:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          description: A contact party for this status.
+        ReportedEvent:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Event'
+          description: A significant occurrence or happening reported for this status.
+    Tax:
+      type: object
+      description: 'A levy or payment for the support of a government required of persons, groups, or businesses within the domain of that government.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        CalculatedAmount:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ExemptionReasonText:
+          type: string
+          description: ''
+        CalculatedRate:
+          type: number
+          description: ''
+        CalculationSequenceNumeric:
+          type: number
+          description: ''
+        BasisQuantity:
+          type: number
+          description: ''
+        BasisAmount:
+          type: number
+          description: ''
+        CategoryCode:
+          type: string
+          format: enum
+          description: ''
+        CurrencyCode:
+          type: string
+          format: enum
+          description: ''
+        JurisdictionText:
+          type: string
+          description: ''
+        CustomsDutyIndicator:
+          type: boolean
+          description: ''
+        ExemptionReasonCode:
+          type: string
+          format: enum
+          description: ''
+        TaxBasisAllowanceRate:
+          type: number
+          description: ''
+        IdentificationText:
+          type: string
+          description: ''
+        DueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeText:
+          type: string
+          description: ''
+        PaymentIdentifier:
+          type: string
+          description: ''
+        PaymentMethodCode:
+          type: string
+          format: enum
+          description: ''
+        DeductionAmount:
+          type: number
+          description: ''
+        Self-AssessedCalculatedAmount:
+          type: number
+          description: ''
+        Self-AssessedBasisQuantity:
+          type: number
+          description: ''
+        Self-AssessedBasisAmount:
+          type: number
+          description: ''
+        RegimeTypeText:
+          type: string
+          description: ''
+        RegimeTypeCode:
+          type: string
+          format: enum
+          description: ''
+        ExemptionIndicator:
+          type: boolean
+          description: ''
+        RefundAmount:
+          type: number
+          description: ''
+        RateCode:
+          type: string
+          format: enum
+          description: ''
+        RateText:
+          type: string
+          description: ''
+        GuaranteeCode:
+          type: string
+          format: enum
+          description: ''
+        GuaranteeText:
+          type: string
+          description: ''
+        TariffDeductionQuantity:
+          type: number
+          description: ''
+        InformationAmount:
+          type: number
+          description: ''
+        DueDateTypeCode:
+          type: string
+          format: enum
+          description: ''
+        CategoryNameText:
+          type: string
+          description: ''
+        FunctionCode:
+          type: string
+          format: enum
+          description: ''
+        BasisCode:
+          type: string
+          format: enum
+          description: ''
+        TaxFreeAmount:
+          type: number
+          description: ''
+        CreditIndicator:
+          type: boolean
+          description: ''
+        JurisdictionIdentifier:
+          type: string
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        ApplicablePercent:
+          type: number
+          description: ''
+        RefundableIndicator:
+          type: boolean
+          description: ''
+        RefundedAtPurchaseIndicator:
+          type: boolean
+          description: ''
+        AuthorityAssessedAmount:
+          type: number
+          description: ''
+        BasisAllowanceRate:
+          type: number
+          description: ''
+        SpecifiedTaxPointDateTime:
+          type: string
+          format: date-time
+          description: ''
+        GrandTotalAmount:
+          type: number
+          description: ''
+        SpecifiedAccountingAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/AccountingAccount'
+          description: A specified accounting account for this tax.
+        PartyFinancialAccount:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/FinancialAccount'
+          description: The financial account of a party for this tax.
+        ValidityPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period for which a tax is valid.
+        AdditionalInformationNote:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Note'
+          description: Additional information for a tax.
+        ServiceSupplyCountry:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Country'
+          description: A country or country sub-division where a service was supplied for this tax.
+        ApplicableLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location where this tax is applicable.
+        IncidencePayment:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Payment'
+          description: A payment associated with an incidence of this tax.
+        CollectionOfficeLocation:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: A location of a collection office for this tax.
+        PaymentGuarantee:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Guarantee'
+          description: A guarantee for the payment of this tax.
+    Temperature:
+      type: object
+      description: 'Measured or perceived degree of heat or cold of a thing, region, etc.'
+      properties:
+        ValueMeasure:
+          type: number
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        InformationInstructions:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Instructions'
+          description: 'Information instructions for achieving, maintaining, using or responding to this temperature.'
+    TimeStatus:
+      type: object
+      description: 'The status of a given point in time, such as current, previous or future.'
+      properties:
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        ApplicableDate:
+          type: string
+          format: date
+          description: ''
+    Trip:
+      type: object
+      description: The act of going to a place and returning to the place of departure.
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        SpecifiedPeriod:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Period'
+          description: A period specified for this trip.
+    UsageCondition:
+      type: object
+      description: A stipulation or thing upon which the fulfilment of something else depends.
+      properties:
+        AgeLimitationText:
+          type: string
+          description: ''
+        ApplicableIndicator:
+          type: boolean
+          description: ''
+        AppropriateClothingText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        DurationText:
+          type: string
+          description: ''
+        GenderLimitationText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        OccupancyText:
+          type: string
+          description: ''
+        PhysicalCharacteristicText:
+          type: string
+          description: ''
+        RequiredIndicator:
+          type: boolean
+          description: ''
+    Version:
+      type: object
+      description: 'A specific issuance of an object, such as a version of software or a message.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        IssueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ValidityStartDateTime:
+          type: string
+          format: date-time
+          description: ''
+        ValidityEndDateTime:
+          type: string
+          format: date-time
+          description: ''
+    Voucher:
+      type: object
+      description: A document exchangeable for products or services by which the payment will be or has been made.
+      properties:
+        FaceAmount:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        IssueDateTime:
+          type: string
+          format: date-time
+          description: ''
+        IssuingCompanyNameText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+    WearAndTearDepreciation:
+      type: object
+      description: A reduction in the value of an item due to use.
+      properties:
+        ActualAmount:
+          type: number
+          description: ''
+        ActualPercent:
+          type: number
+          description: ''
+        RecoverableIndicator:
+          type: boolean
+          description: ''
+    WorkItem:
+      type: object
+      description: A specific task or set of tasks to be undertaken.
+      properties:
+        ClassificationCode:
+          type: string
+          format: enum
+          description: ''
+        CommentText:
+          type: string
+          description: ''
+        DescriptionText:
+          type: string
+          description: ''
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        IndexValue:
+          type: number
+          description: ''
+        ReferenceFileBinaryObject:
+          type: string
+          description: ''
+        StatusCode:
+          type: string
+          format: enum
+          description: ''
+        TotalQuantity:
+          type: number
+          description: ''
+        TypeCode:
+          type: string
+          format: enum
+          description: ''
+        IndexText:
+          type: string
+          description: ''
+        RequestedActionCode:
+          type: string
+          format: enum
+          description: ''
+        SubordinateWorkItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/WorkItem'
+          description: A work item that is subordinate to this work item.
+        TotalPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A total price for this work item.
+        UnitPrice:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Price'
+          description: A unit price for this work item.
+        ChangedStatus:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          description: A changed status for this work item.
+        ReferencedBinaryFile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/BinaryFile'
+          description: A binary file that is referenced by this work item.
+        ItemWorkItem:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/WorkItem'
+          description: A work item that is an item in this work item.
+    WorkShift:
+      type: object
+      description: 'Either a period of work that has a predetermined starting and ending time or a regularly scheduled configuration or pattern of work periods and days off, or both. This configuration may repeat itself on a weekly, biweekly, or longer-term basis.'
+      properties:
+        IdentificationIdentifier:
+          type: string
+          description: ''
+        DayCode:
+          type: string
+          format: enum
+          description: ''
+        NameText:
+          type: string
+          description: ''
+        EffectivePeriod:
+          type: object
+          $ref: '#/components/schemas/Period'
+          description: A period for which this work shift is effective.
