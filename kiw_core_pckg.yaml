@@ -1,0 +1,318 @@
+openapi: 3.0.0
+info:
+  version: '2.0'
+  title: Master-Package des KIW Schnittstellensets
+  description: 'Das KIW Schnittstellen Set beruht auf offenen Standards (zur fachlichen Modellierung insb. die UN/CEFACT CCL) und gängigen Formate. Die Realisierung der API Endpunkte sowie die Nutzung der API kann in jeder geeigneten Entwicklungssprache erfolgen. Auf diese Weise sollen lose gekoppelte und flexibel erweiterbare Integrationsszenarien unterstützt werden, in denen mehrere Business Software Anwendungen jeweils unabhängig voneinander Daten wie beispielsweise Geschäftspartnerdaten oder Buchungs- und Rechnungsdaten austauschen können. Dies geschieht über generisch definierte KIW-Objekte und KIW-Methoden.'
+servers:
+  - url: 'https://api.itwirtschaft.de/v1'
+    description: No Test Server available yet.
+tags:
+  - name: query
+    x-displayName: KIWQuery
+    description: |
+      <SchemaDefinition schemaRef="#/components/schemas/KIWQuery" />
+  - name: response
+    x-displayName: KIWResponse
+    description: |
+      <SchemaDefinition schemaRef="#/components/schemas/KIWResponse" />
+x-tagGroups:
+  - name: Objekte
+    tags:
+      - query
+      - response
+paths:
+  /QueryKIWData:
+    post:
+      summary: '(input:KIWQuery): Output KIWResponse'
+      description: Über diesen Endpunkt werden Daten bei einem beteiligten System abgerufen. Das übergebene Paket liefert dabei die notwendigen Angaben für die interne Ermittlung der Daten. Die Operation im dazugehörigen Process Objekt muss dabei zwangsweise QUERY sein.
+      operationId: query
+      tags:
+        - Endpunkte
+      requestBody:
+        description: 'Als Payload wird immer ein Query Objekt übergeben, dabei kann es sich um ein XML oder JSON Objekt handeln.'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+      responses:
+        '200':
+          description: Als Antwort wird immer ein Response Objekt zurückgegeben.
+          headers:
+            x-next:
+              description: A link to the next page of responses
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KIWResponse'
+  /ProcessKIWData:
+    post:
+      summary: '(input: KIWDataPackage): Output KIWResponse'
+      description: 'Über diesen Endpunkt werden übergebene Daten, in Abhängigkeit der verwendeten Operation im Process Objekt, verarbeitet. Mögliche Operationen sind: ADD, UPDATE oder DELETE.'
+      operationId: process
+      tags:
+        - Endpunkte
+      requestBody:
+        description: 'Als Payload wird immer ein DataPackage Objekt übergeben, dabei kann es sich um ein XML oder JSON Objekt handeln.'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/KIWQuery'
+      responses:
+        '200':
+          description: Als Antwort wird immer ein Response Objekt zurückgegeben.
+          headers:
+            x-next:
+              description: A link to the next page of responses
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KIWResponse'
+components:
+  schemas:
+    KIWDataClass:
+      type: object
+      description: Eine Abstrakte Klasse für alle Fachobjekte des KIW-Schnittstellensets.
+      properties:
+        lastUpdateDate:
+          type: string
+          format: date-time
+          description: Das Datum der letzten Aktualisierung.
+        MasterSystem:
+          type: string
+          enum:
+            - MasterSystemA
+            - MasterSystemB
+          description: Code Bezeichnung des Ursprungssystem eines Objektes.
+          example: MasterSystemA
+        MasterSystemIdentifier:
+          type: string
+          description: Identifizierung des Ursprungssystem eines Objektes.
+          example: MSA01
+        ChangeHistory:
+          type: object
+          $ref: '#/components/schemas/KIWDataChangeHistory'
+          description: Informationen über die Historie des Objektes.
+        Container:
+          type: object
+          $ref: '#/components/schemas/DynamicDataStructure'
+          description: Container für variablen Inhalt.
+      required:
+        - lastUpdateDate
+    KIWDataChangeHistory:
+      type: object
+      properties:
+        ChangeDate:
+          type: string
+          format: date-time
+          description: Datum der Änderung.
+        Fields:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DynamicDataStructure'
+          description: Liste der geänderten Feldwerte.
+      required:
+        - ChangeDate
+        - Fields
+    KIWFieldChange:
+      type: object
+      properties:
+        Field:
+          type: string
+          description: Bezeichnung des Feldes.
+          example: Feldbezeichung
+        OldValue:
+          description: Der vorhergehende Wert des entsprechenden Felds.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+          example: Alter Wert
+        NewValue:
+          description: Der geänderte Wert des entsprechenden Felds.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+          example: Neuer Wert
+      required:
+        - Field
+        - OldValue
+        - NewValue
+    KIWDataPackage:
+      type: object
+      description: Objeckt mit dem Datenpaket für den Datenaustausch.
+      properties:
+        Envelope:
+          type: object
+          description: Objekt für die Beschreibung der Kommunikation.
+          allOf:
+            - $ref: '#/components/schemas/KIWEnvelope'
+        Process:
+          type: object
+          description: Objekt für die Beschreibung der angewendeten Methode.
+          allOf:
+            - $ref: '#/components/schemas/KIWProcess'
+        Content:
+          type: array
+          description: Liste von zu übergebenden Objekten.
+          items:
+            type: object
+            allOf:
+              - $ref: '#/components/schemas/KIWDataClass'
+      required:
+        - Envelope
+        - Process
+        - Content
+    KIWQuery:
+      type: object
+      description: Objekt mit dem Datenpaket für Suchanfragen für die Rücklieferung konkreter Daten.
+      properties:
+        Envelope:
+          type: object
+          description: Objekt für die Beschreibung der Kommunikation.
+          allOf:
+            - $ref: '#/components/schemas/KIWEnvelope'
+        Process:
+          type: object
+          description: Objekt für die Beschreibung der angewendeten Methode.
+          allOf:
+            - $ref: '#/components/schemas/KIWProcess'
+        Query:
+          type: object
+          description: Objekt mit konkreten Werten für die Suchanfrage.
+          allOf:
+            - $ref: '#/components/schemas/KIWDataClass'
+      required:
+        - Envelope
+        - Process
+        - Query
+    KIWEnvelope:
+      type: object
+      description: Objekt für die Beschreibung der Kommunikation.
+      properties:
+        MessageIdentifier:
+          type: integer
+          description: ID der Nachricht
+          example: 563
+        SendingSystem:
+          type: integer
+          description: ID des Sendesystems
+          example: 4
+        SendingSystemName:
+          type: string
+          description: Name des Sendesystems
+          example: Sendesystem Y
+        RecievingSystem:
+          type: integer
+          description: ID des Empfangssystems
+          example: 8
+        RecievingSystemName:
+          type: string
+          description: Name des Empfangssystems
+          example: Empfangssystem X
+        DateSend:
+          type: string
+          format: date
+          description: Sendedatum der Nachricht
+        TimeSend:
+          type: string
+          format: date-time
+          description: Sendezeit der Nachricht
+        ContentOverview:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/KIWOverview'
+          description: Beschreibt die enthaltenen Datenobjekte
+        ClientID:
+          type: string
+          description: Mandanten ID
+        ClientName:
+          type: string
+          description: Mandantenname
+      required:
+        - MessageIdentifier
+        - SendingSystem
+        - RecievingSystem
+        - DateSend
+        - TimeSend
+        - ContentOverview
+    KIWOverview:
+      type: object
+      description: Objekt mit einer Auflistung über die enthaltenen Objekte eines Datenpakets.
+      properties:
+        DataClass:
+          type: string
+          description: Name des enthaltenen Datenobjekts
+          example: KIWAccountingEntry
+        Count:
+          type: integer
+          description: Anzahl der Datenobjekte
+          example: 2
+      required:
+        - DataClass
+        - Count
+    KIWResponse:
+      type: object
+      description: Objekt mit Informationen zum Vorgang des Datenaustausches über den Endpunkt '/ProcessKIWData'.
+      properties:
+        Success:
+          type: boolean
+          description: Boolscherwert über den Erfolg/Misserfolg einer Datenübertragung.
+        StatusCode:
+          type: string
+          enum:
+            - codeA
+            - codeB
+          description: Informationscodierung über den Erfolg/Misserfolg einer Datenübertragung.
+        StatusText:
+          type: string
+          description: Textuelle Beschreibung über den Status einer Datenübertragung.
+        Content:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/KIWDataPackage'
+          description: Datenpaket mit den zurückgelieferten Objekten.
+      required:
+        - Success
+        - StatusCode
+        - StatusText
+        - Content
+    KIWProcess:
+      type: object
+      description: Hauptobjekt das die Methode des Aufrufs beschreibt.
+      properties:
+        Name:
+          type: string
+          description: 'Name, ausgedrückt als Text, des Prozesses.'
+          example: KIWAccountingEntry.add
+        Operation:
+          type: string
+          description: 'Ein Code, der die Funktionsweise des auszuführenden Prozesses beschreibt.'
+          example: 1
+        Description:
+          type: string
+          description: Eine textuelle Beschreibung des Prozesses.
+          example: Beschreibung des Prozesses
+        Version:
+          type: string
+          description: Eine Kennung einer Version dieses Prozesses.
+          example: 00000000-0000-0000-0000-000000000000
+    DynamicDataStructure:
+      description: Container für variablen Inhalt.
+      oneOf:
+        - type: string
+        - type: boolean
+        - type: integer
+        - type: number
